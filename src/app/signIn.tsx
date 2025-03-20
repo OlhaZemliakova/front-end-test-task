@@ -7,27 +7,43 @@ import {
 	loginSuccess,
 } from "../store/slices/authSlice";
 
-const SignInPage: any = () => {
-	const navigate: any = useNavigate();
-	const dispatch: any = useAppDispatch();
-	const isAuthenticated: any = useAppSelector(
-		(state: any) => state.auth.isAuthenticated,
+const SignInPage: React.FC = () => {
+	const navigate = useNavigate();
+	const dispatch = useAppDispatch();
+	const isAuthenticated = useAppSelector(
+		(state) => state.auth.isAuthenticated,
 	);
 
-	const [email, setEmail]: any = React.useState("");
-	const [password, setPassword]: any = React.useState("");
+	const [email, setEmail] = React.useState("");
+	const [password, setPassword] = React.useState("");
+	const [error, setError] = React.useState("");
+	const [loading, setLoading] = React.useState(false);
 
 	React.useEffect(() => {
-		if (isAuthenticated === true) navigate("/");
+		if (isAuthenticated) navigate("/");
 	}, [isAuthenticated, navigate]);
 
-	async function handleSubmit(e: any) {
+	const validateEmail = (email: string) => {
+		const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		return re.test(email);
+	};
+
+	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 		dispatch(loginStart());
+		setLoading(true);
+		setError("");
 
 		await new Promise((r) => setTimeout(r, 1000));
 
-		if (email && password) {
+		if (!validateEmail(email)) {
+			setError("Invalid email format");
+			dispatch(loginFailure("Invalid email format"));
+			setLoading(false);
+			return;
+		}
+
+		if (email === "test@test.test" && password === "password") {
 			dispatch(
 				loginSuccess({
 					email: email,
@@ -36,7 +52,11 @@ const SignInPage: any = () => {
 					role: "user",
 				}),
 			);
-		} else dispatch(loginFailure("Please fill all fields"));
+		} else {
+			setError("User not found");
+			dispatch(loginFailure("User not found"));
+		}
+		setLoading(false);
 	}
 
 	return (
@@ -80,10 +100,17 @@ const SignInPage: any = () => {
 							/>
 						</div>
 
+						{error && <div className="text-red-500 mb-4">{error}</div>}
+
 						<button
 							type="submit"
-							className="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none">
-							Sign in
+							className="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none"
+							disabled={loading}>
+							{loading ? (
+								<span className="animate-spin inline-block w-4 h-4 border-[3px] border-current border-t-transparent rounded-full" />
+							) : (
+								"Sign in"
+							)}
 						</button>
 					</form>
 				</div>

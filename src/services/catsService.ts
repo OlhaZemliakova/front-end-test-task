@@ -62,7 +62,11 @@ const baseQueryWithRetry = async (args: any, api: any, extraOptions: any) => {
 export const catsApi = createApi({
 	reducerPath: "catsApi",
 	baseQuery: baseQueryWithRetry,
-	endpoints: (builder) => ({}),
+	endpoints: (builder) => ({
+		fetchBreeds: builder.query<CatModel[], void>({
+			query: () => "https://api.thecatapi.com/v1/breeds",
+		}),
+	}),
 });
 
-export const {} = catsApi;
+export const { useFetchBreedsQuery } = catsApi;

@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAppSelector } from "../store/store";
+import { useFetchBreedsQuery } from "../services/catsService";
 import {
 	BarChart,
 	Bar,
@@ -17,7 +18,7 @@ import {
 	Line,
 } from "recharts";
 
-const COLORS: any = [
+const COLORS = [
 	"#0088FE",
 	"#00C49F",
 	"#FFBB28",
@@ -26,100 +27,123 @@ const COLORS: any = [
 	"#82ca9d",
 ];
 
-const HomePage: any = () => {
-	const navigate: any = useNavigate();
-	const isAuthenticated: any = useAppSelector(
-		(state: any) => state.auth.isAuthenticated,
-	);
+interface ChartData {
+	name: string;
+	value: number;
+}
 
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState(null);
-	const [cats, setCats] = useState([
-		{
-			name: "Coralcat",
-			origin: "Ukraine",
-			description:
-				"Coralcat is a breed of cat that is known for its long, luxurious fur and expressive eyes.",
-			adaptability: 100,
-			affectionLevel: 100,
-			lifeSpan: 100,
-			indoor: 1,
-			lap: 1,
-		},
-	]);
+interface LifeSpanData {
+	name: string;
+	years: number;
+}
 
-	const [adaptabilityData, setAdaptabilityData] = React.useState([]);
-	const [affectionData, setAffectionData] = React.useState([]);
-	const [originData, setOriginData] = React.useState([]);
-	const [indoorData, setIndoorData] = React.useState([]);
-	const [lapData, setLapData] = React.useState([]);
-	const [lifeSpanData, setLifeSpanData] = React.useState([]);
+const HomePage: React.FC = () => {
+	const navigate = useNavigate();
+	const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+	const { data: cats = [], error, isLoading } = useFetchBreedsQuery();
 
-	React.useEffect(() => {
+	const [sortOption, setSortOption] = useState("name");
+	const [filterOrigin, setFilterOrigin] = useState("");
+
+	const [adaptabilityData, setAdaptabilityData] = useState<ChartData[]>([]);
+	const [affectionData, setAffectionData] = useState<ChartData[]>([]);
+	const [originData, setOriginData] = useState<ChartData[]>([]);
+	const [indoorData, setIndoorData] = useState<ChartData[]>([]);
+	const [lapData, setLapData] = useState<ChartData[]>([]);
+	const [lifeSpanData, setLifeSpanData] = useState<LifeSpanData[]>([]);
+
+	useEffect(() => {
 		if (!isAuthenticated) {
 			navigate("/sign-in");
 		}
 	}, [isAuthenticated, navigate]);
 
-	React.useEffect(() => {
+	useEffect(() => {
 		if (!cats.length) return;
 
 		setAdaptabilityData(
-			cats.map((cat: any) => ({
+			cats.map((cat) => ({
 				name: cat.name,
-				value: Math.random() * 10,
-			})),
+				value: cat.adaptability,
+			}))
 		);
 
 		setAffectionData(
-			cats.map((cat: any) => ({
+			cats.map((cat) => ({
 				name: cat.name,
-				value: Math.random() * 10,
-			})),
+				value: cat.affection_level,
+			}))
 		);
 
-		setOriginData(
-			cats.map((cat: any) => ({
-				name: cat.origin || "Unknown",
-				value: Math.random() * 10,
-			})),
-		);
-
-		const indoorCount = cats.reduce((acc: any, cat: any) => {
-			if (cat.indoor === 1) {
-				acc.indoor = (acc.indoor || 0) + 1;
+		const originCount = cats.reduce((acc, cat) => {
+			const origin = acc.find((o) => o.name === cat.origin);
+			if (origin) {
+				origin.value += 1;
 			} else {
-				acc.outdoor = (acc.outdoor || 0) + 1;
+				acc.push({ name: cat.origin || "Unknown", value: 1 });
 			}
 			return acc;
-		}, {});
+		}, [] as ChartData[]);
+
+		setOriginData(originCount);
+
+		const indoorCount = cats.reduce(
+			(acc, cat) => {
+				if (cat.indoor === 1) {
+					acc.indoor += 1;
+				} else {
+					acc.outdoor += 1;
+				}
+				return acc;
+			},
+			{ indoor: 0, outdoor: 0 }
+		);
 
 		setIndoorData([
-			{ name: "Indoor", value: indoorCount.indoor || 0 },
-			{ name: "Outdoor", value: indoorCount.outdoor || 0 },
+			{ name: "Indoor", value: indoorCount.indoor },
+			{ name: "Outdoor", value: indoorCount.outdoor },
 		]);
 
 		setLapData([
-			{ name: "Lap Cat", value: Math.random() * 100 },
-			{ name: "Not Lap Cat", value: Math.random() * 100 },
+			{ name: "Lap Cat", value: cats.filter((cat) => cat.lap === 1).length },
+			{ name: "Not Lap Cat", value: cats.filter((cat) => cat.lap === 0).length },
 		]);
 
 		setLifeSpanData(
-			cats.map((cat: any) => ({
+			cats.map((cat) => ({
 				name: cat.name,
-				years: Math.random() * 2000,
-			})),
+				years: parseInt(cat.life_span.split(" ")[0]) || 0,
+			}))
 		);
 	}, [cats]);
 
-	if (isLoading || error) {
+	const sortedCats = [...cats].sort((a, b) => {
+		if (sortOption === "name") {
+			return a.name.localeCompare(b.name);
+		} else if (sortOption === "adaptability") {
+			return b.adaptability - a.adaptability; // Sort by adaptability descending
+		}
+		return 0;
+	});
+
+	// Filtering logic
+	const filteredCats = filterOrigin
+		? sortedCats.filter((cat) => cat.origin === filterOrigin)
+		: sortedCats;
+
+
+	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center h-screen">
-				{isLoading ? (
-					<div className="animate-spin inline-block w-6 h-6 border-[3px] border-current border-t-transparent text-blue-600 rounded-full" />
-				) : (
-					<div className="text-red-500">Error loading cats data</div>
-				)}
+				<div className="animate-spin inline-block w-6 h-6 border-[3px] border-current border-t-transparent text-blue-600 rounded-full" />
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="flex items-center justify-center h-screen">
+				<div className="text-red-500">Error loading cats data</div>
 			</div>
 		);
 	}
@@ -128,12 +152,40 @@ const HomePage: any = () => {
 		<div className="container mx-auto px-4 py-8">
 			<h1 className="text-4xl font-bold mb-8">Cat Breeds Statistics</h1>
 
+			{/* Sorting and Filtering UI */}
+			<div className="mb-4 flex justify-between">
+				<div>
+					<label htmlFor="sort" className="mr-2">Sort by:</label>
+					<select
+						id="sort"
+						value={sortOption}
+						onChange={(e) => setSortOption(e.target.value)}
+						className="border rounded p-1"
+					>
+						<option value="name">Name</option>
+						<option value="adaptability">Adaptability</option>
+					</select>
+				</div>
+				<div>
+					<label htmlFor="filter" className="mr-2">Filter by Origin:</label>
+					<select
+						id="filter"
+						value={filterOrigin}
+						onChange={(e) => setFilterOrigin(e.target.value)}
+						className="border rounded p-1"
+					>
+						<option value="">All</option>
+						{[...new Set(cats.map(cat => cat.origin))].map((origin) => (
+							<option key={origin} value={origin}>{origin}</option>
+						))}
+					</select>
+				</div>
+			</div>
+
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 				{/* Adaptability Chart */}
 				<div className="bg-white p-4 rounded-xl shadow-sm">
-					<h2 className="text-xl font-semibold mb-4">
-						Adaptability Distribution
-					</h2>
+					<h2 className="text-xl font-semibold mb-4">Adaptability Distribution</h2>
 					<div className="h-[300px]">
 						<ResponsiveContainer>
 							<BarChart data={adaptabilityData}>
@@ -177,11 +229,8 @@ const HomePage: any = () => {
 									cy="50%"
 									outerRadius={100}
 									label>
-									{originData.map((_: any, index: any) => (
-										<Cell
-											key={`cell-${index}`}
-											fill={COLORS[index % COLORS.length]}
-										/>
+									{originData.map((_, index) => (
+										<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
 									))}
 								</Pie>
 								<Tooltip />
@@ -193,9 +242,7 @@ const HomePage: any = () => {
 
 				{/* Indoor vs Outdoor Chart */}
 				<div className="bg-white p-4 rounded-xl shadow-sm">
-					<h2 className="text-xl font-semibold mb-4">
-						Indoor vs Outdoor Preference
-					</h2>
+					<h2 className="text-xl font-semibold mb-4">Indoor vs Outdoor Preference</h2>
 					<div className="h-[300px]">
 						<ResponsiveContainer>
 							<PieChart>
@@ -207,11 +254,8 @@ const HomePage: any = () => {
 									cy="50%"
 									outerRadius={100}
 									label>
-									{indoorData.map((_: any, index: any) => (
-										<Cell
-											key={`cell-${index}`}
-											fill={COLORS[index % COLORS.length]}
-										/>
+									{indoorData.map((_, index) => (
+										<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
 									))}
 								</Pie>
 								<Tooltip />
@@ -235,11 +279,8 @@ const HomePage: any = () => {
 									cy="50%"
 									outerRadius={100}
 									label>
-									{lapData.map((_: any, index: any) => (
-										<Cell
-											key={`cell-${index}`}
-											fill={COLORS[index % COLORS.length]}
-										/>
+									{lapData.map((_, index) => (
+										<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
 									))}
 								</Pie>
 								<Tooltip />
@@ -268,14 +309,10 @@ const HomePage: any = () => {
 
 			{/* Cats Grid */}
 			<div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-				{[].map((cat: any) => (
-					<div
-						key={Math.random()}
-						className="group flex flex-col h-full bg-white border border-gray-200 shadow-sm rounded-xl">
+				{filteredCats.map((cat) => (
+					<div key={cat.id} className="group flex flex-col h-full bg-white border border-gray-200 shadow-sm rounded-xl">
 						<div className="p-4 md:p-6">
-							<h3 className="text-xl font-semibold text-gray-800 mb-2">
-								{cat.naming}
-							</h3>
+							<h3 className="text-xl font-semibold text-gray-800 mb-2">{cat.name}</h3>
 							<span className="block mb-1 text-xs font-semibold uppercase text-blue-600">
 								Origin: {cat.origin || "Unknown"}
 							</span>
@@ -285,15 +322,15 @@ const HomePage: any = () => {
 							<div className="mt-4 space-y-2">
 								<div className="flex justify-between">
 									<span>Adaptability:</span>
-									<span>{Math.floor(Math.random() * 5) + 1}/5</span>
+									<span>{cat.adaptability}/5</span>
 								</div>
 								<div className="flex justify-between">
 									<span>Affection Level:</span>
-									<span>{Math.floor(Math.random() * 5) + 1}/5</span>
+									<span>{cat.affection_level}/5</span>
 								</div>
 								<div className="flex justify-between">
 									<span>Life Span:</span>
-									<span>{Math.floor(Math.random() * 10) + 10} years</span>
+									<span>{cat.life_span}</span>
 								</div>
 							</div>
 						</div>
