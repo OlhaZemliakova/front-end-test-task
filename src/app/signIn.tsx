@@ -76,7 +76,7 @@ const SignInPage: React.FC = () => {
 								type="email"
 								id="email"
 								name="email"
-								className="py-3 px-4 block w-full border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500"
+								className="py-3 px-4 block w-full border border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500"
 								required
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
@@ -93,7 +93,7 @@ const SignInPage: React.FC = () => {
 								type="password"
 								id="password"
 								name="password"
-								className="py-3 px-4 block w-full border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500"
+								className="py-3 px-4 block w-full border border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500"
 								required
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
